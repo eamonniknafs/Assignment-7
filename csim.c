@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <getopt.h>
 #include <unistd.h>
 
 
@@ -30,19 +32,19 @@ typedef set_t *cache_t;
 
 /* Define type for cache statistics */
 typedef struct {
-    unsigned int hits = 0;
-    unsigned int misses = 0;
-    unsigned int evictions = 0;
-    unsigned long long int lru_count = 1;
+    unsigned int hits;
+    unsigned int misses;
+    unsigned int evictions;
+    unsigned long long int lru_count;
 } stats_t;
 
 /* Define type for args */
 typedef struct {
-    int verbose = 0;    //verbose flag
-    int idx_bits = 0;   //number of set index bits (S = 2^s is the number of sets)
-    int assoc = 0;      //associativity (number of lines per set)
-    int block_bits = 0; //number of block bits (B = 2^b is the block size)
-    char* t_addr = 0;   //address to tracefile
+    int verbose;    //verbose flag
+    int idx_bits;   //number of set index bits (S = 2^s is the number of sets)
+    int assoc;      //associativity (number of lines per set)
+    int block_bits; //number of block bits (B = 2^b is the block size)
+    char* t_addr;   //address to tracefile
 } args_t;
 
 
@@ -59,9 +61,21 @@ int block_size;
  */
 void init() {
     cache = (set_t*)malloc(num_sets * sizeof(set_t));
-    for (set = 0; set < num_sets; set++) {
+
+    stats.hits = 0;
+    stats.misses = 0;
+    stats.evictions = 0;
+    stats.lru_count = 1;
+
+    args.verbose = 0;
+    args.idx_bits = 0;
+    args.assoc = 0;
+    args.block_bits = 0;
+    args.t_addr = NULL;
+
+    for (int set = 0; set < num_sets; set++) {
         cache[set] = (line_t*)malloc(args.assoc * sizeof(line_t));
-        for (line = 0; line < args.assoc; line++) {
+        for (int line = 0; line < args.assoc; line++) {
             cache[set][line].valid = 0;
             cache[set][line].tag = 0;
             cache[set][line].lru = 0;
@@ -70,11 +84,56 @@ void init() {
 }
 
 /*
+ * evict: evicts line in set_t set that matches tag.
+ *      - Completes eviction
+ *      - Increases stats.evictions
+ */
+void evict(set_t set, unsigned long long tag) {
+    unsigned int evict_at = 0;
+    for (int line = 0; line < args.assoc; ++line) {
+        if (ULONG_MAX > set[line].lru) {
+            evict_at = line;
+        }
+    }
+
+    if (set[evict_at].valid) {
+        stats.evictions++;
+    }
+
+    set[evict_at].valid = 1;
+    set[evict_at].tag = tag;
+    set[evict_at].lru = stats.lru_count++;
+}
+
+/*
+ * getData: fetch data from cache at address addr.
+ *      - If present, add to stats.hits, else add to stats.misses
+ *      - Call evict() if required
+ */
+void getData(unsigned long long addr) {
+    unsigned long long tag = addr >> (args.block_bits + args.idx_bits);
+    set_t set = cache[(addr >> args.idx_bits) & (num_sets-1)];
+
+    for (int line = 0; line < args.assoc; ++line) {
+        if (set[line].valid) {
+            if (set[line].tag == tag) {
+                set[line].lru = stats.lru_count++;
+                stats.hits++;
+                return;
+            }
+        }
+    }
+
+    stats.misses++;
+    evict(set, tag);
+}
+
+/*
  * runTraceSim: runs the cache simulator with the trace file provided in args
  */
  //help from: http://blough.ece.gatech.edu/3055/read_trace.c
 void runTraceSim(char* t_addr) {
-    FILE trace = fopen(t_addr, "r");
+    FILE *trace = fopen(t_addr, "r");
     char operation;
     unsigned long long addr;
     int size;
@@ -96,50 +155,6 @@ void runTraceSim(char* t_addr) {
     }
     fclose(trace);
 }
-
-/*
- * getData: fetch data from cache at address addr.
- *      - If present, add to stats.hits, else add to stats.misses
- *      - Call evict() if required
- */
-void getData(unsigned long long addr) {
-    unsigned long long tag = addr >> (block_bits + idx_bits);
-    set_t set = cache[(addr >> args.idx_bits) & (num_sets-1)];
-
-    for (int line = 0; line < args.assoc; ++line) {
-        if (set[line].valid) {
-            if (set[line].tag == tag) {
-                set[line].lru = stats.lru_count++;
-                stats.hits++;
-                return;
-            }
-        }
-    }
-
-    stats.misses++;
-    evict(set, tag);
-}
-
-/*
- * evict: evicts line in set_t set that matches tag.
- *      - Completes eviction
- *      - Increases stats.evictions
- */
-void evict(set_t set, unsigned long long tag) {
-    unsigned int evict_at = 0
-    for (int line = 0; line < args.assoc; ++line) {
-        if (ULONG_MAX > set[line].lru) {
-            evict_at = line;
-        }
-    }
-
-    if (set[evict_at].valid) {
-        stats.evictions++;
-    }
-
-    set[evict_at].valid = 1;
-    set[evict_at].tag = tag;
-    set[evict_at].lru = stats.lru_count++;
 
 /*
  * help: prints info for command line usage
@@ -192,14 +207,14 @@ int main(int argc, char *argv[])
     }
 
     /* Ensures all required args are set */
-    if (args.s == 0 || args.E == 0 || args.b == 0 || args.t_addr == 0) {
+    if (args.idx_bits == 0 || args.assoc == 0 || args.block_bits == 0 || args.t_addr == NULL) {
         printf("%s: Missing required command line argument\n", argv[0]);
         help(argv);
         exit(1);
     }
 
-    num_sets = (1 << idx_bits);
-    block_size = (1 << block_bits);
+    num_sets = (1 << args.idx_bits);
+    block_size = (1 << args.block_bits);
 
     init(); //initializes cache, allocates memory, and assigns NULL values
 
