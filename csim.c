@@ -46,7 +46,7 @@ typedef struct {
     int idx_bits = 0;   //number of set index bits
     int assoc = 0;      //associativity
     int blocks = 0;     //number of block bits
-    char* t_addr = 0;     //address to tracefile
+    char* t_addr = 0;   //address to tracefile
 } args_t;
 
 
@@ -55,7 +55,26 @@ cache_t cache;
 args_t args;
 
 
-int main(int argc, char **argv)
+/*
+ * help: prints info for command line usage
+ */
+void help(char* argv[]) {
+    printf("Usage: %s [-hv] -s <num> -E <num> -b <num> -t <file>\n", argv[0]);
+    printf("Options:\n");
+    printf("  -h         Print this help message.\n");
+    printf("  -v         Optional verbose flag.\n");
+    printf("  -s <num>   Number of set index bits.\n");
+    printf("  -E <num>   Number of lines per set.\n");
+    printf("  -b <num>   Number of block offset bits.\n");
+    printf("  -t <file>  Trace file.\n");
+    printf("\nExamples:\n");
+    printf("  linux>  %s -s 4 -E 1 -b 4 -t traces/yi.trace\n", argv[0]);
+    printf("  linux>  %s -v -s 8 -E 2 -b 4 -t traces/yi.trace\n", argv[0]);
+    exit(0);
+}
+
+
+int main(int argc, char *argv[])
 {
     /* Gets args from command line */
     //help from: https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
@@ -85,6 +104,14 @@ int main(int argc, char **argv)
             exit(1);
         }
     }
+
+    /* Ensures all required args are set */
+    if (args.s == 0 || args.E == 0 || args.b == 0 || args.t_addr == 0) {
+        printf("%s: Missing required command line argument\n", argv[0]);
+        help(argv);
+        exit(1);
+    }
+    
     printSummary(0, 0, 0);
     return 0;
 }
