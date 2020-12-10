@@ -9,6 +9,7 @@
  */
 #include "cachelab.h"
 
+
 /* Define type for cache line */
 typedef struct {
     short valid;
@@ -20,7 +21,7 @@ typedef struct {
 typedef line_t* set_t;
 
 /* Define type for cache statistics */
-typedef struct{
+typedef struct {
     unsigned int hits = 0;
     unsigned int misses = 0;
     unsigned int evictions = 0;
@@ -28,10 +29,22 @@ typedef struct{
 } stats_t;
 
 /* Define type for entire cache */
-typedef struct{
+typedef struct {
     set_t sets;
     stats_t stats;
 } cache_t;
+
+
+/* Define global variables */
+cache_t cache;
+struct args {
+    int verbose = 0;    //verbose flag
+    int idx_bits = 0;   //number of set index bits
+    int assoc = 0;      //associativity
+    int blocks = 0;     //number of block bits
+    char* t_addr = 0;     //address to tracefile
+};
+
 
 int main()
 {
