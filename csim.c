@@ -15,6 +15,7 @@ typedef struct {
     short valid;
     unsigned long long tag;
     unsigned long long block;
+    unsigned long long int lru;
 } line_t;
 
 /* Define type for cache set */
