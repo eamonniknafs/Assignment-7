@@ -59,6 +59,7 @@ int main(int argc, char **argv)
 {
     /* Gets args from command line */
     //help from: https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
+    int arg;
     while ((arg = getopt (argc, argv, "s:E:b:t:vh")) != -1){
         switch (arg){
         case 's':
