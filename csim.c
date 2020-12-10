@@ -43,9 +43,9 @@ typedef struct {
 /* Define type for args */
 typedef struct {
     int verbose = 0;    //verbose flag
-    int idx_bits = 0;   //number of set index bits
-    int assoc = 0;      //associativity
-    int blocks = 0;     //number of block bits
+    int idx_bits = 0;   //number of set index bits (S = 2^s is the number of sets)
+    int assoc = 0;      //associativity (number of lines per set)
+    int block_bits = 0; //number of block bits (B = 2^b is the block size)
     char* t_addr = 0;   //address to tracefile
 } args_t;
 
@@ -53,6 +53,8 @@ typedef struct {
 /* Define global variables */
 cache_t cache;
 args_t args;
+int num_sets;
+int block_size;
 
 
 /*
@@ -82,25 +84,25 @@ int main(int argc, char *argv[])
     while ((arg = getopt (argc, argv, "s:E:b:t:vh")) != -1){
         switch (arg){
         case 's':
-            args.idx_bits = atoi(optarg);
+            args.idx_bits = atoi(optarg); //number of set index bits (S = 2^s is the number of sets)
             break;
         case 'E':
-            args.assoc = atoi(optarg);
+            args.assoc = atoi(optarg); //associativity (number of lines per set)
             break;
         case 'b':
-            args.blocks = atoi(optarg);
+            args.block_bits = atoi(optarg); //number of block bits (B = 2^b is the block size)
             break;
         case 't':
-            args.t_addr = optarg;
+            args.t_addr = optarg; //address to tracefile
             break;
         case 'v':
-            args.verbose = 1;
+            args.verbose = 1; //verbose flag
             break;
         case 'h':
-            help(argv);
+            help(argv); //help
             exit(0);
         default:
-            help(argv);
+            help(argv); //no args (help)
             exit(1);
         }
     }
@@ -111,6 +113,9 @@ int main(int argc, char *argv[])
         help(argv);
         exit(1);
     }
+
+    num_sets = (1 << idx_bits);
+    block_size = (1 << block_bits);
     
     printSummary(0, 0, 0);
     return 0;
