@@ -16,11 +16,13 @@
 #include <getopt.h>
 #include <unistd.h>
 
+/* Define type for memory addresses */
+typedef unsigned long long int addr_t;
 
 /* Define type for cache line */
 typedef struct {
     short valid;
-    unsigned long long tag;
+    addr_t tag;
     unsigned long long int lru;
 } line_t;
 
@@ -44,7 +46,6 @@ typedef struct {
     int idx_bits;   //number of set index bits (S = 2^s is the number of sets)
     int assoc;      //associativity (number of lines per set)
     int block_bits; //number of block bits (B = 2^b is the block size)
-    char* t_addr;   //address to tracefile
 } args_t;
 
 
@@ -54,24 +55,13 @@ args_t args;
 stats_t stats;
 int num_sets;
 int block_size;
-
+char* t_addr = NULL;   //address to tracefile
 
 /*
  * init: initializes cache by allocating memory and setting 0 for values
  */
 void init() {
     cache = (set_t*)malloc(num_sets * sizeof(set_t));
-
-    stats.hits = 0;
-    stats.misses = 0;
-    stats.evictions = 0;
-    stats.lru_count = 1;
-
-    args.verbose = 0;
-    args.idx_bits = 0;
-    args.assoc = 0;
-    args.block_bits = 0;
-    args.t_addr = NULL;
 
     for (int set = 0; set < num_sets; set++) {
         cache[set] = (line_t*)malloc(args.assoc * sizeof(line_t));
@@ -88,9 +78,9 @@ void init() {
  *      - Completes eviction
  *      - Increases stats.evictions
  */
-void evict(set_t set, unsigned long long tag) {
+void evict(set_t set, addr_t tag) {
     unsigned int evict_at = 0;
-    for (int line = 0; line < args.assoc; ++line) {
+    for (int line = 0; line < args.assoc; line++) {
         if (ULONG_MAX > set[line].lru) {
             evict_at = line;
         }
@@ -110,11 +100,11 @@ void evict(set_t set, unsigned long long tag) {
  *      - If present, add to stats.hits, else add to stats.misses
  *      - Call evict() if required
  */
-void getData(unsigned long long addr) {
-    unsigned long long tag = addr >> (args.block_bits + args.idx_bits);
+void getData(addr_t addr) {
+    addr_t tag = addr >> (args.block_bits + args.idx_bits);
     set_t set = cache[(addr >> args.idx_bits) & (num_sets-1)];
 
-    for (int line = 0; line < args.assoc; ++line) {
+    for (int line = 0; line < args.assoc; line++) {
         if (set[line].valid) {
             if (set[line].tag == tag) {
                 set[line].lru = stats.lru_count++;
@@ -135,10 +125,10 @@ void getData(unsigned long long addr) {
 void runTraceSim(char* t_addr) {
     FILE *trace = fopen(t_addr, "r");
     char operation;
-    unsigned long long addr;
+    addr_t addr;
     int size;
 
-    while (fscanf(trace, " %c %llx,%d", &operation, &addr, &size) != 0) {
+    while (fscanf(trace, " %c %llx,%d", &operation, &addr, &size) == 3) {
         switch(operation) {
             case 'L':
                 getData(addr);
@@ -192,7 +182,7 @@ int main(int argc, char *argv[])
             args.block_bits = atoi(optarg); //number of block bits (B = 2^b is the block size)
             break;
         case 't':
-            args.t_addr = optarg; //address to tracefile
+            t_addr = optarg; //address to tracefile
             break;
         case 'v':
             args.verbose = 1; //verbose flag
@@ -207,18 +197,24 @@ int main(int argc, char *argv[])
     }
 
     /* Ensures all required args are set */
-    if (args.idx_bits == 0 || args.assoc == 0 || args.block_bits == 0 || args.t_addr == NULL) {
+    if (args.idx_bits == 0 || args.assoc == 0 || args.block_bits == 0 || t_addr == NULL) {
         printf("%s: Missing required command line argument\n", argv[0]);
         help(argv);
         exit(1);
     }
 
-    num_sets = (1 << args.idx_bits);
-    block_size = (1 << args.block_bits);
+    num_sets = (unsigned int)(1 << args.idx_bits);
+    block_size = (unsigned int)(1 << args.block_bits);
 
     init(); //initializes cache, allocates memory, and assigns NULL values
 
-    runTraceSim(args.t_addr); //runs the cache simulator
+    runTraceSim(t_addr); //runs the cache simulator
+
+    /* Free allocated memory */
+    for (int set = 0; set < num_sets; set++) {
+        free(cache[set]);
+    }
+    free(cache);
     
     printSummary(stats.hits, stats.misses, stats.evictions);
     return 0;
