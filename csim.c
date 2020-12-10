@@ -8,6 +8,11 @@
  * Email: en@bu.edu
  */
 #include "cachelab.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 
 /* Define type for cache line */
@@ -19,7 +24,7 @@ typedef struct {
 } line_t;
 
 /* Define type for cache set */
-typedef line_t* set_t;
+typedef line_t *set_t;
 
 /* Define type for cache statistics */
 typedef struct {
@@ -35,20 +40,50 @@ typedef struct {
     stats_t stats;
 } cache_t;
 
-
-/* Define global variables */
-cache_t cache;
-struct args {
+/* Define type for args */
+typedef struct {
     int verbose = 0;    //verbose flag
     int idx_bits = 0;   //number of set index bits
     int assoc = 0;      //associativity
     int blocks = 0;     //number of block bits
     char* t_addr = 0;     //address to tracefile
-};
+} args_t;
 
 
-int main()
+/* Define global variables */
+cache_t cache;
+args_t args;
+
+
+int main(int argc, char **argv)
 {
+    /* Gets args from command line */
+    //help from: https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
+    while ((arg = getopt (argc, argv, "s:E:b:t:vh")) != -1){
+        switch (arg){
+        case 's':
+            args.idx_bits = atoi(optarg);
+            break;
+        case 'E':
+            args.assoc = atoi(optarg);
+            break;
+        case 'b':
+            args.blocks = atoi(optarg);
+            break;
+        case 't':
+            args.t_addr = optarg;
+            break;
+        case 'v':
+            args.verbose = 1;
+            break;
+        case 'h':
+            help(argv);
+            exit(0);
+        default:
+            help(argv);
+            exit(1);
+        }
+    }
     printSummary(0, 0, 0);
     return 0;
 }
