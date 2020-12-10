@@ -70,7 +70,7 @@ void init() {
 }
 
 /*
- * runTraceSim - runs the cache simulator with the trace file provided in args
+ * runTraceSim: runs the cache simulator with the trace file provided in args
  */
  //help from: http://blough.ece.gatech.edu/3055/read_trace.c
 void runTraceSim(char* t_addr) {
@@ -82,20 +82,64 @@ void runTraceSim(char* t_addr) {
     while (fscanf(trace, " %c %llx,%d", &operation, &addr, &size) != 0) {
         switch(operation) {
             case 'L':
-                //get value at addr
+                getData(addr);
                 break;
             case 'S':
-                //get value at addr
+                getData(addr);
                 break;
             case 'M':
-                //get value at addr
-                //get value at addr
+                getData(addr);
+                getData(addr);
                 break;
             default: break;
         }
     }
     fclose(trace);
 }
+
+/*
+ * getData: fetch data from cache at address addr.
+ *      - If present, add to stats.hits, else add to stats.misses
+ *      - Call evict() if required
+ */
+void getData(unsigned long long addr) {
+    unsigned long long tag = addr >> (block_bits + idx_bits);
+    set_t set = cache[(addr >> args.idx_bits) & (num_sets-1)];
+
+    for (int line = 0; line < args.assoc; ++line) {
+        if (set[line].valid) {
+            if (set[line].tag == tag) {
+                set[line].lru = stats.lru_count++;
+                stats.hits++;
+                return;
+            }
+        }
+    }
+
+    stats.misses++;
+    evict(set, tag);
+}
+
+/*
+ * evict: evicts line in set_t set that matches tag.
+ *      - Completes eviction
+ *      - Increases stats.evictions
+ */
+void evict(set_t set, unsigned long long tag) {
+    unsigned int evict_at = 0
+    for (int line = 0; line < args.assoc; ++line) {
+        if (ULONG_MAX > set[line].lru) {
+            evict_at = line;
+        }
+    }
+
+    if (set[evict_at].valid) {
+        stats.evictions++;
+    }
+
+    set[evict_at].valid = 1;
+    set[evict_at].tag = tag;
+    set[evict_at].lru = stats.lru_count++;
 
 /*
  * help: prints info for command line usage
