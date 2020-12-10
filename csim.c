@@ -26,6 +26,9 @@ typedef struct {
 /* Define type for cache set */
 typedef line_t *set_t;
 
+/* Define type for entire cache */
+typedef set_t *cache_t;
+
 /* Define type for cache statistics */
 typedef struct {
     unsigned int hits = 0;
@@ -33,12 +36,6 @@ typedef struct {
     unsigned int evictions = 0;
     unsigned long long int lru_count = 1;
 } stats_t;
-
-/* Define type for entire cache */
-typedef struct {
-    set_t sets;
-    stats_t stats;
-} cache_t;
 
 /* Define type for args */
 typedef struct {
@@ -53,9 +50,25 @@ typedef struct {
 /* Define global variables */
 cache_t cache;
 args_t args;
+stats_t stats;
 int num_sets;
 int block_size;
 
+
+/*
+ * init: initializes cache by allocating memory and setting 0 for values
+ */
+void init() {
+    cache = (set_t*)malloc(num_sets * sizeof(set_t));
+    for (set = 0; set < num_sets; set++) {
+        cache[set] = (line_t*)malloc(args.assoc * sizeof(line_t));
+        for (line = 0; line < args.assoc; line++) {
+            cache[set][line].valid = 0;
+            cache[set][line].tag = 0;
+            cache[set][line].lru = 0;
+        }
+    }
+}
 
 /*
  * help: prints info for command line usage
