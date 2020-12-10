@@ -19,7 +19,6 @@
 typedef struct {
     short valid;
     unsigned long long tag;
-    unsigned long long block;
     unsigned long long int lru;
 } line_t;
 
@@ -68,6 +67,34 @@ void init() {
             cache[set][line].lru = 0;
         }
     }
+}
+
+/*
+ * runTraceSim - runs the cache simulator with the trace file provided in args
+ */
+ //help from: http://blough.ece.gatech.edu/3055/read_trace.c
+void runTraceSim(char* t_addr) {
+    FILE trace = fopen(t_addr, "r");
+    char operation;
+    unsigned long long addr;
+    int size;
+
+    while (fscanf(trace, " %c %llx,%d", &operation, &addr, &size) != 0) {
+        switch(operation) {
+            case 'L':
+                //get value at addr
+                break;
+            case 'S':
+                //get value at addr
+                break;
+            case 'M':
+                //get value at addr
+                //get value at addr
+                break;
+            default: break;
+        }
+    }
+    fclose(trace);
 }
 
 /*
@@ -129,7 +156,11 @@ int main(int argc, char *argv[])
 
     num_sets = (1 << idx_bits);
     block_size = (1 << block_bits);
+
+    init(); //initializes cache, allocates memory, and assigns NULL values
+
+    runTraceSim(args.t_addr); //runs the cache simulator
     
-    printSummary(0, 0, 0);
+    printSummary(stats.hits, stats.misses, stats.evictions);
     return 0;
 }
