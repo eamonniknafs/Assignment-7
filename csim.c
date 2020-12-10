@@ -80,9 +80,11 @@ void init() {
  */
 void evict(set_t set, addr_t tag) {
     unsigned int evict_at = 0;
+    addr_t lru = ULONG_MAX;
     for (int line = 0; line < args.assoc; line++) {
-        if (ULONG_MAX > set[line].lru) {
+        if (lru > set[line].lru) {
             evict_at = line;
+            lru = set[line].lru;
         }
     }
 
@@ -102,7 +104,7 @@ void evict(set_t set, addr_t tag) {
  */
 void getData(addr_t addr) {
     addr_t tag = addr >> (args.block_bits + args.idx_bits);
-    set_t set = cache[(addr >> args.idx_bits) & (num_sets-1)];
+    set_t set = cache[(addr >> args.block_bits) & (num_sets-1)];
 
     for (int line = 0; line < args.assoc; line++) {
         if (set[line].valid) {
